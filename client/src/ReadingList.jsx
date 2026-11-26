@@ -1,18 +1,21 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from './api.js';
 
-export default function ReadingList({ refreshKey, onEdit, onChanged }) {
-  const [data, setData] = useState({ readings: [], total: 0, page: 1, limit: 10 });
+export default function ReadingList({ refreshKey, onEdit, onChanged, patientId, readOnly = false }) {
+  const [data, setData] = useState({ readings: [], total: 0, page: 1, limit: 20 });
   const [page, setPage] = useState(1);
   const [error, setError] = useState('');
 
   const load = useCallback(async () => {
     try {
-      setData(await api(`/readings?page=${page}&limit=10`));
+      const endpoint = patientId
+        ? `/doctor/patients/${patientId}/readings?page=${page}&limit=20`
+        : `/readings?page=${page}&limit=20`;
+      setData(await api(endpoint));
     } catch (err) {
       setError(err.message);
     }
-  }, [page]);
+  }, [page, patientId]);
 
   useEffect(() => { load(); }, [load, refreshKey]);
 
@@ -30,14 +33,22 @@ export default function ReadingList({ refreshKey, onEdit, onChanged }) {
 
   return (
     <div className="card">
-      <h2>Your readings</h2>
+      <div className="row between">
+        <h2>{readOnly ? "Patient's readings" : 'Your readings'}</h2>
+        <span className="muted" style={{ fontSize: '0.85rem' }}>Total: {data.total} readings</span>
+      </div>
       {error && <p className="error" role="alert">{error}</p>}
       {data.readings.length === 0 ? (
-        <p className="muted">No readings yet. Add your first one above.</p>
+        <p className="muted">{readOnly ? 'No readings recorded for this patient yet.' : 'No readings yet. Add your first one above.'}</p>
       ) : (
         <table>
           <thead>
-            <tr><th>Date</th><th>Slot</th><th>mg/dl</th><th></th></tr>
+            <tr>
+              <th>Date</th>
+              <th>Slot</th>
+              <th>mg/dl</th>
+              {!readOnly && <th></th>}
+            </tr>
           </thead>
           <tbody>
             {data.readings.map((r) => (
@@ -45,10 +56,12 @@ export default function ReadingList({ refreshKey, onEdit, onChanged }) {
                 <td>{r.date}</td>
                 <td>{r.slotLabel}</td>
                 <td>{r.value}</td>
-                <td className="actions">
-                  <button className="link" onClick={() => onEdit(r)}>Edit</button>
-                  <button className="link danger" onClick={() => remove(r)}>Delete</button>
-                </td>
+                {!readOnly && (
+                  <td className="actions">
+                    <button className="link" onClick={() => onEdit(r)}>Edit</button>
+                    <button className="link danger" onClick={() => remove(r)}>Delete</button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

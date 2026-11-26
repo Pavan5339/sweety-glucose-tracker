@@ -6,15 +6,34 @@ const SLOTS = ['morning', 'after_breakfast', 'after_lunch', 'after_dinner'];
 const EMAIL = 'demo@sweety.test';
 const PASSWORD = 'demo1234';
 
+const DOCTOR_EMAIL = 'doctor@sweety.test';
+const DOCTOR_PASSWORD = 'doctor1234';
+
 const pool = createPool();
 const hash = await bcrypt.hash(PASSWORD, 10);
 const { rows } = await pool.query(
-  `INSERT INTO users (name, email, password_hash) VALUES ('Demo Patient', $1, $2)
-   ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash RETURNING id`,
+  `INSERT INTO users (name, email, password_hash, role) VALUES ('Demo Patient', $1, $2, 'patient')
+   ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash, role = 'patient' RETURNING id`,
   [EMAIL, hash]
 );
 const userId = rows[0].id;
 await pool.query('DELETE FROM readings WHERE user_id = $1', [userId]);
+
+// Create demo doctor account
+const docHash = await bcrypt.hash(DOCTOR_PASSWORD, 10);
+const { rows: docRows } = await pool.query(
+  `INSERT INTO users (name, email, password_hash, role) VALUES ('Dr. Smith', $1, $2, 'doctor')
+   ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash, role = 'doctor' RETURNING id`,
+  [DOCTOR_EMAIL, docHash]
+);
+const doctorId = docRows[0].id;
+
+// Assign Demo Patient to Dr. Smith
+await pool.query(
+  `INSERT INTO doctor_patient_assignments (doctor_id, patient_id) VALUES ($1, $2)
+   ON CONFLICT (doctor_id, patient_id) DO NOTHING`,
+  [doctorId, userId]
+);
 
 // Sample readings for the last 70 days (covers this month and the whole previous month).
 // Values follow a fixed pattern so the demo data is the same every run.
@@ -31,5 +50,5 @@ for (let i = 0; i < 70; i++) {
     inserted++;
   }
 }
-console.log(`Seeded ${inserted} readings. Log in with ${EMAIL} / ${PASSWORD}`);
+console.log(`Seeded ${inserted} readings. Patient: ${EMAIL} / ${PASSWORD} | Doctor: ${DOCTOR_EMAIL} / ${DOCTOR_PASSWORD}`);
 await pool.end();

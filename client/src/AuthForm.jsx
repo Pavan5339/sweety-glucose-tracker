@@ -3,11 +3,17 @@ import { api, setToken } from './api.js';
 
 export default function AuthForm({ onAuth }) {
   const [mode, setMode] = useState('login');
-  const [form, setForm] = useState({ name: '', email: '', password: '' });
+  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'patient' });
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
+
+  function fillDemo(email, password) {
+    setMode('login');
+    setForm((f) => ({ ...f, email, password }));
+    setError('');
+  }
 
   async function submit(e) {
     e.preventDefault();
@@ -30,21 +36,59 @@ export default function AuthForm({ onAuth }) {
     <form className="card auth" onSubmit={submit}>
       <h2>{mode === 'login' ? 'Log in' : 'Create your account'}</h2>
       {mode === 'register' && (
-        <label>
-          Name
-          <input value={form.name} onChange={set('name')} autoComplete="name" />
-        </label>
+        <>
+          <label>
+            Name
+            <input value={form.name} onChange={set('name')} autoComplete="name" placeholder="Your full name" />
+          </label>
+          <label>
+            Account Type
+            <select value={form.role} onChange={set('role')}>
+              <option value="patient">Patient (track glucose)</option>
+              <option value="doctor">Doctor (view assigned patients)</option>
+            </select>
+          </label>
+        </>
       )}
       <label>
         Email
-        <input type="email" value={form.email} onChange={set('email')} autoComplete="email" />
+        <input type="email" value={form.email} onChange={set('email')} autoComplete="email" placeholder="you@example.com" />
       </label>
       <label>
         Password
-        <input type="password" value={form.password} onChange={set('password')} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} />
+        <input
+          type="password"
+          value={form.password}
+          onChange={set('password')}
+          autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+          placeholder="Min 8 characters"
+        />
       </label>
       {error && <p className="error" role="alert">{error}</p>}
       <button disabled={busy}>{mode === 'login' ? 'Log in' : 'Sign up'}</button>
+
+      <div style={{ background: '#f8fafc', padding: '10px', borderRadius: '6px', fontSize: '0.85rem' }}>
+        <strong>Demo Accounts (Click to fill):</strong>
+        <div style={{ display: 'flex', gap: '8px', marginTop: '6px', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            className="secondary"
+            style={{ padding: '4px 8px', fontSize: '0.8rem' }}
+            onClick={() => fillDemo('demo@sweety.test', 'demo1234')}
+          >
+            Demo Patient
+          </button>
+          <button
+            type="button"
+            className="secondary"
+            style={{ padding: '4px 8px', fontSize: '0.8rem' }}
+            onClick={() => fillDemo('doctor@sweety.test', 'doctor1234')}
+          >
+            Demo Doctor
+          </button>
+        </div>
+      </div>
+
       <p className="muted">
         {mode === 'login' ? 'New here?' : 'Already have an account?'}{' '}
         <a href="#" onClick={(e) => { e.preventDefault(); setError(''); setMode(mode === 'login' ? 'register' : 'login'); }}>

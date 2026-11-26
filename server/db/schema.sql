@@ -3,7 +3,18 @@ CREATE TABLE IF NOT EXISTS users (
   name TEXT NOT NULL,
   email TEXT NOT NULL UNIQUE,
   password_hash TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT 'patient' CHECK (role IN ('patient', 'doctor')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'patient';
+
+CREATE TABLE IF NOT EXISTS doctor_patient_assignments (
+  id SERIAL PRIMARY KEY,
+  doctor_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  patient_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (doctor_id, patient_id)
 );
 
 CREATE TABLE IF NOT EXISTS readings (

@@ -13,13 +13,13 @@ const url = process.env.TEST_DATABASE_URL;
 
 test('API', { skip: !url && 'set TEST_DATABASE_URL to run API tests' }, async (t) => {
   const pool = createPool(url);
-  await pool.query('DROP TABLE IF EXISTS readings; DROP TABLE IF EXISTS users;');
+  await pool.query('DROP TABLE IF EXISTS doctor_patient_assignments; DROP TABLE IF EXISTS readings; DROP TABLE IF EXISTS users CASCADE;');
   await pool.query(fs.readFileSync(new URL('../db/schema.sql', import.meta.url), 'utf8'));
   const app = createApp(pool, { jwtSecret: 'test-secret' });
   const today = todayString();
 
-  const signup = async (email) =>
-    (await request(app).post('/auth/register').send({ name: 'Test', email, password: 'password1' })).body.token;
+  const signup = async (email, role = 'patient') =>
+    (await request(app).post('/auth/register').send({ name: 'Test', email, password: 'password1', role })).body.token;
   const tokenA = await signup('a@test.dev');
   const tokenB = await signup('b@test.dev');
   const post = (token, body) => request(app).post('/readings').set('Authorization', `Bearer ${token}`).send(body);
@@ -76,6 +76,35 @@ test('API', { skip: !url && 'set TEST_DATABASE_URL to run API tests' }, async (t
     assert.equal(res.body.readings.length, 2);
     const empty = await request(app).get(`/reports/daily?date=${today}`).set('Authorization', `Bearer ${tokenB}`);
     assert.equal(empty.body.count, 0);
+  });
+
+  await t.test('doctor role access and patient isolation', async () => {
+    const docToken = await signup('doc@test.dev', 'doctor');
+    const userARow = (await pool.query("SELECT id FROM users WHERE email = 'a@test.dev'")).rows[0];
+    const docRow = (await pool.query("SELECT id FROM users WHERE email = 'doc@test.dev'")).rows[0];
+
+    // Patient cannot access doctor endpoints
+    const forbidden = await request(app).get('/doctor/patients').set('Authorization', `Bearer ${tokenA}`);
+    assert.equal(forbidden.status, 403);
+
+    // Assign Patient A to Doctor
+    await pool.query('INSERT INTO doctor_patient_assignments (doctor_id, patient_id) VALUES ($1, $2)', [docRow.id, userARow.id]);
+
+    // Doctor can view assigned patient
+    const listRes = await request(app).get('/doctor/patients').set('Authorization', `Bearer ${docToken}`);
+    assert.equal(listRes.status, 200);
+    assert.equal(listRes.body.patients.length, 1);
+    assert.equal(listRes.body.patients[0].id, userARow.id);
+
+    // Doctor can view assigned patient's daily report
+    const docDaily = await request(app).get(`/doctor/patients/${userARow.id}/reports/daily?date=${today}`).set('Authorization', `Bearer ${docToken}`);
+    assert.equal(docDaily.status, 200);
+    assert.equal(docDaily.body.count, 2);
+
+    // Doctor cannot view unassigned patient B
+    const userBRow = (await pool.query("SELECT id FROM users WHERE email = 'b@test.dev'")).rows[0];
+    const unassigned = await request(app).get(`/doctor/patients/${userBRow.id}/reports/daily?date=${today}`).set('Authorization', `Bearer ${docToken}`);
+    assert.equal(unassigned.status, 404);
   });
 
   await pool.end();
