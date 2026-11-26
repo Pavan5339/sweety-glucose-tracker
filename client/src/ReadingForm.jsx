@@ -69,8 +69,17 @@ export default function ReadingForm({ editing, onSaved, onCancel }) {
 
   return (
     <form className="card" onSubmit={submit} noValidate>
-      <h2>{editing ? 'Edit reading' : 'Add a reading'}</h2>
+      <h2>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0d9488" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10" />
+          <line x1="12" y1="8" x2="12" y2="16" />
+          <line x1="8" y1="12" x2="16" y2="12" />
+        </svg>
+        {editing ? 'Edit reading' : 'Add a reading'}
+      </h2>
+
       {errors.general && <p className="error" role="alert">{errors.general}</p>}
+
       <div className="row">
         <label>
           Date
@@ -85,12 +94,13 @@ export default function ReadingForm({ editing, onSaved, onCancel }) {
           </select>
         </label>
         <label>
-          Glucose (mg/dl)
+          Glucose value (mg/dl)
           {errors.value && <span className="field-error" role="alert">{errors.value}</span>}
           <input inputMode="numeric" value={form.value} onChange={set('value')} placeholder="e.g. 110" aria-label="Glucose value" />
         </label>
       </div>
-      <div className="row" style={{ marginTop: '12px' }}>
+
+      <div className="row" style={{ marginTop: '16px' }}>
         <button>{editing ? 'Save changes' : 'Add reading'}</button>
         {editing && <button type="button" className="secondary" onClick={onCancel}>Cancel</button>}
       </div>
