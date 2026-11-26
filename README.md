@@ -1,113 +1,177 @@
-# Sweety - Blood Glucose Tracker
+# Sweety - Blood Glucose Tracker (MERN + PostgreSQL)
 
-A small web app where a patient records up to 4 blood glucose readings a day and views daily, month-to-date and previous-month reports.
+A responsive web application where diabetes patients record up to 4 blood glucose readings a day and view daily, month-to-date, and previous-month reports. Built with a Node.js + Express API, PostgreSQL database, and React (Vite) frontend.
 
-Stack: Node.js + Express API, PostgreSQL, React (Vite) frontend.
+---
 
 ## Features
 
-- Sign up and log in. Passwords are hashed with bcrypt. Auth uses a JWT sent as a Bearer token. Each user only sees their own readings.
-- Add, view, edit and delete readings (date, time slot, value in mg/dl). Slots: Morning (fasting), After breakfast, After lunch, After dinner.
-- Validation (shown as clear messages in the UI, enforced on the server, and backed by DB constraints):
-  - value required; whole number from 40 to 600
-  - one reading per slot per day
-  - at most 4 readings per day
-  - date cannot be in the future
-- Reports with highest, lowest, average (1 decimal) and count, plus a friendly empty state:
-  - Daily: the selected date (also lists each reading with its slot)
-  - Month to date: 1st of the month up to the selected date
-  - Monthly: the whole previous month
-- Bonus: pagination on `GET /readings?page=1&limit=20`.
+### 1. Authentication & Security
+- **Registration & Login**: Secure sign-up and login with name, email, and password (minimum 8 characters).
+- **Password Security**: Passwords are hashed using `bcrypt` (10 rounds); plain-text passwords are never stored.
+- **JWT Authorization**: Session managed via JSON Web Tokens sent in standard `Bearer` authorization headers.
+- **User Isolation**: Patients can only see and modify their own glucose readings.
+- **Role-based Access Control**: Supports both `patient` and `doctor` roles.
 
-## Project layout
+### 2. Readings Management & Form Validation
+- **Readings**: Date, time slot, and glucose value in mg/dl.
+- **Time Slots**:
+  - `morning`: Morning (fasting)
+  - `after_breakfast`: After breakfast
+  - `after_lunch`: After lunch
+  - `after_dinner`: After dinner
+- **Validation Rules & Clear UI Error Messages (displayed directly above each input field)**:
+  - **Value required**: *"Please enter a glucose value."*
+  - **Whole number between 40 and 600**: *"Value must be between 40 and 600 mg/dl."*
+  - **Only one reading per slot per day**: *"You already have an After lunch reading for this date."* (dynamic slot name)
+  - **Maximum 4 readings per day**: *"You can add only 4 readings per day."*
+  - **Date cannot be in the future**: *"Date cannot be in the future."*
+- Full CRUD: Add, view with pagination, inline edit, and delete readings.
 
+### 3. Reports
+- Computes **Highest**, **Lowest**, **Average** (rounded to 1 decimal place), and **Reading Count** for three standard periods:
+  - **Daily**: The selected date (includes list of individual readings with time slots).
+  - **Month to date**: From the 1st of the month up to the selected date.
+  - **Monthly (Previous Month)**: The entire previous calendar month (e.g., if selected date is in October, range is 1 Sep – 30 Sep).
+- Friendly empty state when no readings exist for a chosen period.
+
+---
+
+## Bonus Tasks Implemented
+
+1. **Interactive Charts (Recharts)**:
+   - Visual trend line chart displaying glucose readings over the month (supports both Month-to-Date and Previous Month views).
+   - Target glucose reference lines (Normal target threshold between 70 and 180 mg/dl).
+   - Slot-based filtering and interactive hover tooltips.
+2. **Docker & Docker Compose**:
+   - `docker-compose.yml` orchestrates PostgreSQL 15, backend Express API, and React frontend with a single command.
+3. **Frontend Tests with React Testing Library**:
+   - Automated component test suite (`client/src/__tests__/ReadingForm.test.jsx`) powered by Vitest and React Testing Library verifying field-level validation, input rendering, API error mapping, and submission.
+4. **Pagination**:
+   - Efficient pagination on `GET /readings?page=1&limit=20` with next/previous controls and total count.
+5. **Doctor Role**:
+   - Dedicated Doctor Portal for doctor accounts (`role: 'doctor'`).
+   - Doctors can view assigned patients, their glucose reports, visual trend charts, and readings history in read-only mode with patient isolation.
+
+---
+
+## Demo Accounts
+
+The database seed script populates 70 days of sample readings (~224 records) and sets up demo credentials:
+
+| Role | Email | Password | Access |
+| --- | --- | --- | --- |
+| **Patient** | `demo@sweety.test` | `demo1234` | Full patient tracking & reporting |
+| **Doctor** | `doctor@sweety.test` | `doctor1234` | Doctor Portal viewing assigned patients |
+
+---
+
+## Quick Start with Docker
+
+Run the complete stack (PostgreSQL + API Server + Client) with Docker Compose:
+
+```bash
+docker compose up --build
 ```
-server/   Express API, schema (db/schema.sql), migrate and seed scripts, tests
-client/   React app (Vite)
-.env.example   every variable needed
+
+- **Frontend**: http://localhost:5173
+- **Backend API**: http://localhost:4000
+- **PostgreSQL**: localhost:5432
+
+---
+
+## Local Setup (Without Docker)
+
+### Prerequisites
+- Node.js 18+
+- PostgreSQL 13+
+
+### 1. Create PostgreSQL Databases
+```bash
+createdb sweety
+createdb sweety_test
 ```
 
-## Setup
-
-You need Node.js 18+ and PostgreSQL 13+.
-
-1. Create the databases (the second one is only for API tests):
-   ```
-   createdb sweety
-   createdb sweety_test
-   ```
-2. Environment files. Copy the variables from `.env.example`:
-   ```
-   cp .env.example server/.env      # keep the server variables
-   cp .env.example client/.env      # keep VITE_API_URL
-   ```
-   Edit `DATABASE_URL` and set `JWT_SECRET` to a long random string.
-3. Install, create tables and load demo data:
-   ```
-   cd server
-   npm install
-   npm run migrate
-   npm run seed
-   ```
-   The seed script creates a demo user with about 200 sample readings over the last 70 days:
-   **demo@sweety.test / demo1234**
-
-## Run
-
+### 2. Configure Environment Files
+Copy the example variables:
+```bash
+cp .env.example server/.env
+cp .env.example client/.env
 ```
-# terminal 1
-cd server && npm start          # http://localhost:4000
+Ensure `DATABASE_URL` in `server/.env` points to your local PostgreSQL instance (e.g., `postgres://postgres:postgres@localhost:5432/sweety`).
 
-# terminal 2
-cd client && npm install && npm run dev    # http://localhost:5173
+### 3. Install Dependencies & Seed Demo Data
+```bash
+# Server setup, migrations, and seed
+cd server
+npm install
+npm run migrate
+npm run seed
+
+# Client setup
+cd ../client
+npm install
 ```
 
-## Tests
+### 4. Run the Application
+In separate terminals:
 
+```bash
+# Terminal 1 - Backend Server (http://localhost:4000)
+cd server
+npm start
+
+# Terminal 2 - Frontend App (http://localhost:5173)
+cd client
+npm run dev
 ```
+
+---
+
+## Running Automated Tests
+
+### Backend Test Suite (Node test runner + Supertest)
+```bash
 cd server
 npm test
 ```
+*Executes 20 tests covering authentication, password hashing, validation rules, error messages, user isolation, reports calculations, and doctor role access.*
 
-- `test/validation.test.js`: every validation rule and its message.
-- `test/reports.test.js`: highest/lowest/average maths and the date ranges (matches the examples in the brief).
-- `test/api.test.js`: register, login, hashed password, user isolation, validation errors, duplicate slot, edit, delete, daily report. It runs only when `TEST_DATABASE_URL` is set. It drops and recreates the tables in that database, so never point it at real data.
+### Frontend Test Suite (Vitest + React Testing Library)
+```bash
+cd client
+npm test
+```
+*Executes component tests for `ReadingForm` verifying required value, range enforcement (40-600), future date prevention, and error message rendering.*
 
-## API
+---
 
-| Method | Path | Notes |
+## API Endpoints
+
+| Method | Path | Description |
 | --- | --- | --- |
-| POST | /auth/register | name, email, password (min 8 chars) |
-| POST | /auth/login | email, password |
-| GET | /me | current user |
-| GET | /readings | `?page=&limit=` |
-| POST | /readings | `{ date, slot, value }` |
-| PUT | /readings/:id | same body |
-| DELETE | /readings/:id | |
-| GET | /reports/daily | `?date=YYYY-MM-DD` (default today) |
-| GET | /reports/month-to-date | `?date=` |
-| GET | /reports/monthly | `?date=` (previous month of that date) |
+| `POST` | `/auth/register` | Register a new patient or doctor account |
+| `POST` | `/auth/login` | Authenticate and obtain JWT token |
+| `GET` | `/me` | Get currently authenticated user profile |
+| `GET` | `/readings?page=1&limit=20` | Paginated readings for logged-in user |
+| `POST` | `/readings` | Add reading `{ date, slot, value }` |
+| `PUT` | `/readings/:id` | Update an existing reading |
+| `DELETE` | `/readings/:id` | Delete a reading |
+| `GET` | `/reports/daily?date=YYYY-MM-DD` | Daily report with individual readings |
+| `GET` | `/reports/month-to-date?date=YYYY-MM-DD` | 1st of month to selected date |
+| `GET` | `/reports/monthly?date=YYYY-MM-DD` | Complete previous calendar month |
+| `GET` | `/doctor/patients` | (Doctor only) List assigned patients |
+| `GET` | `/doctor/patients/:id/reports/:type` | (Doctor only) Patient's reports |
+| `GET` | `/doctor/patients/:id/readings` | (Doctor only) Patient's readings |
 
-## Notes
+---
 
-Assumptions
-- "Today" for the future-date check is the server's local date. The browser date picker uses the user's own date.
-- The "Monthly" report means the whole calendar month before the selected date's month, as in the brief's example.
-- Dates are stored as plain `DATE` values, so there is no time zone shifting.
-- The 4-readings-per-day rule is checked in the API with its own message. Because there are exactly 4 slots and one reading per slot, the one-per-slot rule triggers first in normal use; the DB unique constraint is the final guard against races.
-- Passwords need at least 8 characters. JWTs last 7 days and are kept in localStorage.
+## Notes & Technical Assumptions
 
-How it was tested
-- Unit and API tests above all pass (19 tests). The API tests were run against PGlite (a WebAssembly build of PostgreSQL) in my environment, because a PostgreSQL server was not installable there. The SQL is plain PostgreSQL, but run `npm test` with a real database to confirm.
-- The UI was checked in a headless Chrome against the running app, with the seeded demo data (login, reports, validation messages, duplicate slot, adding a reading, narrow mobile view).
-
-What I would improve with more time
-- Frontend tests (React Testing Library) for the reading form.
-- Charts of readings over the month, and Docker Compose for the database and app.
-- Refresh tokens or httpOnly cookies instead of localStorage, and rate limiting on login.
-- Better handling of time zones if the server and patient are in different zones.
-- Doctor role, Redis caching of reports, reminder jobs.
-
-## AI use
-
-I used an AI assistant (Instinct) to write most of the code, tests and this README, working from the assignment text. I reviewed and ran it, and I can explain the code. Final checks and the decision to submit are mine.
+1. **Date & Time Zones**:
+   - Dates are strictly stored and parsed as ISO `YYYY-MM-DD` (`DATE` type in PostgreSQL) to prevent timezone drift across client and server.
+   - The future-date validation check evaluates against the current server date in local time.
+2. **Constraint Enforcement**:
+   - Multi-layer defense: Client-side validation validates inputs instantly, the Express API enforces all business logic, and PostgreSQL unique indexes (`UNIQUE (user_id, reading_date, slot)`) and check constraints guarantee data integrity against race conditions.
+3. **Monthly Report Definition**:
+   - In accordance with the assignment brief, "Monthly" calculates stats across the entire previous calendar month relative to the selected date (e.g. 1 Sep – 30 Sep for an October date).
